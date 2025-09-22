@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Pool, Weights, AppStatus, Tab, TABS } from './types';
+import { Pool, Weights, AppStatus, Tab, TABS, ConsoleLog } from './types';
 import { fetchPools } from './services/meteoraApi';
 import Header from './components/Header';
 import StatusIndicator from './components/StatusIndicator';
@@ -8,6 +9,7 @@ import AdvancedPanel from './components/AdvancedPanel';
 import Tabs from './components/Tabs';
 import PoolList from './components/PoolList';
 import PoolModal from './components/PoolModal';
+import Console from './components/Console';
 
 const App: React.FC = () => {
     // FIX: Changed state to hold pools without score, as score is a derived property.
@@ -28,6 +30,63 @@ const App: React.FC = () => {
         rug_risk: 0.0,
     });
     const [selectedPool, setSelectedPool] = useState<Pool | null>(null);
+    const [isConsoleOpen, setIsConsoleOpen] = useState<boolean>(false);
+    const [consoleLogs, setConsoleLogs] = useState<ConsoleLog[]>([]);
+
+    // Hook into console methods to display logs in the UI
+    useEffect(() => {
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+
+        const formatMessage = (args: any[]): string => {
+            return args.map(arg => {
+                if (typeof arg === 'object' && arg !== null) {
+                    try {
+                        return JSON.stringify(arg, null, 2);
+                    } catch (e) {
+                        return '[Unserializable Object]';
+                    }
+                }
+                return String(arg);
+            }).join(' ');
+        };
+
+        const addLog = (type: 'log' | 'warn' | 'error', message: string) => {
+            setConsoleLogs(prevLogs => {
+                const newLog = {
+                    type,
+                    message,
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                };
+                // Keep the log array from getting excessively large
+                const MAX_LOGS = 200;
+                const newLogs = [...prevLogs, newLog];
+                return newLogs.slice(Math.max(newLogs.length - MAX_LOGS, 0));
+            });
+        };
+
+        console.log = (...args: any[]) => {
+            originalLog.apply(console, args);
+            addLog('log', formatMessage(args));
+        };
+        console.warn = (...args: any[]) => {
+            originalWarn.apply(console, args);
+            addLog('warn', formatMessage(args));
+        };
+        console.error = (...args: any[]) => {
+            originalError.apply(console, args);
+            addLog('error', formatMessage(args));
+        };
+
+        console.log("App Initialized. Console is hooked.");
+
+        return () => {
+            console.log = originalLog;
+            console.warn = originalWarn;
+            console.error = originalError;
+        };
+    }, []);
 
     // FIX: Updated `pool` parameter type to `Omit<Pool, 'score'>` because the score is calculated from properties
     // that don't include the score itself. This makes the function more accurate and reusable.
@@ -100,7 +159,7 @@ const App: React.FC = () => {
 
     return (
         <div className="p-4 md:p-6 max-w-7xl mx-auto">
-            <Header />
+            <Header onToggleConsole={() => setIsConsoleOpen(!isConsoleOpen)} />
             <main className="glass-pane rounded-xl p-4 md:p-6">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
                     <h2 className="text-2xl font-semibold text-white">Meteora DLMM Pool Analyzer</h2>
@@ -124,6 +183,12 @@ const App: React.FC = () => {
                 />
             </main>
             {selectedPool && <PoolModal pool={selectedPool} onClose={closeModal} />}
+            <Console 
+                isOpen={isConsoleOpen}
+                onClose={() => setIsConsoleOpen(false)}
+                onClear={() => setConsoleLogs([])}
+                logs={consoleLogs}
+            />
         </div>
     );
 };

@@ -1,3 +1,4 @@
+
 export const TABS = ['Top today', 'Stable-ish', 'Majors', 'New'] as const;
 
 export interface Pool {
@@ -35,3 +36,9 @@ export enum AppStatus {
 }
 
 export type Tab = typeof TABS[number];
+
+export interface ConsoleLog {
+    type: 'log' | 'warn' | 'error';
+    message: string;
+    timestamp: string;
+}
