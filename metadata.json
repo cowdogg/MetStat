@@ -1,0 +1,5 @@
+{
+  "name": "Solana DeFi Playground",
+  "description": "A prototype tool to analyze and rank Meteora DLMM pools on Solana. This version uses mocked client-side data for demonstration, allowing users to filter, search, and adjust ranking weights to find pools.",
+  "requestFramePermissions": []
+}
